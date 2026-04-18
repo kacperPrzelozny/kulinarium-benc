@@ -1,4 +1,4 @@
-:root {
+/* :root {
     --primary: #ff3535;
     --primary-dark: #ca0000;
     --bg: #434343;
@@ -19,3 +19,8 @@ body {
     color: var(--text);
     padding-bottom: 2rem;
 }
+
+header {
+    background-color: var(--primary);
+    position: sticky; top: 0; z-index: 100;
+} */
