@@ -1,6 +1,6 @@
 {
-  "name": "FoodieSpot",
-  "short_name": "FoodieSpot",
+  "name": "Kulinarium",
+  "short_name": "Kulinarium",
   "description": "Aplikacja do dokumentowania i udostępniania Twoich kulinarnych odkryć wraz z lokalizacją GPS.",
   "start_url": "index.html",
   "display": "standalone",
