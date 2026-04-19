@@ -1,6 +1,7 @@
 const dbName = "KulinariumDB";
 let db;
 
+// Inicjalizacja IndexedDB
 const request = indexedDB.open(dbName, 1);
 request.onupgradeneeded = e => {
     db = e.target.result;
@@ -26,8 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
     bsModal = new bootstrap.Modal(document.getElementById('modal'));
 });
 
-searchInput.addEventListener('input', e => loadCards(e.target.value));
-
+// --- NOWOŚĆ: BACKUP DANYCH ---
 window.exportData = () => {
     const tx = db.transaction("dishes", "readonly");
     tx.objectStore("dishes").getAll().onsuccess = e => {
@@ -52,22 +52,30 @@ importInput.addEventListener('change', e => {
             const store = tx.objectStore("dishes");
             importedData.forEach(item => store.put(item));
             tx.oncomplete = () => {
-                alert("Dane zaimportowane pomyślnie!");
+                alert("Import zakończony sukcesem!");
                 loadCards();
             };
         } catch (err) {
-            alert("Błąd podczas odczytu pliku kopii.");
+            alert("Błąd pliku JSON.");
         }
     };
     reader.readAsText(file);
 });
 
+// --- WYSZUKIWARKA ---
+searchInput.addEventListener('input', e => {
+    loadCards(e.target.value);
+});
+
+// --- LOGIKA FORMULARZA ---
 document.getElementById('add-btn').onclick = () => {
     form.reset();
     document.getElementById('entry-id').value = '';
     photoPreview.src = ''; 
     photoPreview.classList.add('d-none'); 
     document.getElementById('geo-status').innerText = 'Brak lokalizacji';
+    document.getElementById('lat').value = '';
+    document.getElementById('lng').value = '';
     document.getElementById('modal-title').innerText = 'Nowe Danie';
     currentPhotoData = null;
     bsModal.show();
@@ -105,7 +113,7 @@ document.getElementById('geo-btn').onclick = () => {
             document.getElementById('lng').value = pos.coords.longitude;
             status.innerText = "Lokalizacja zapisana!";
         },
-        () => { status.innerText = "Błąd lokalizacji."; }
+        () => { status.innerText = "Błąd GPS."; }
     );
 };
 
@@ -128,20 +136,24 @@ form.onsubmit = e => {
     tx.oncomplete = () => { bsModal.hide(); loadCards(searchInput.value); };
 };
 
+// --- RENDEROWANIE ---
 function loadCards(filter = "") {
     if (!db) return;
     const tx = db.transaction("dishes", "readonly");
     tx.objectStore("dishes").getAll().onsuccess = e => {
         container.innerHTML = '';
         let dishes = e.target.result.sort((a, b) => b.id - a.id);
+        
         if (filter) {
             const f = filter.toLowerCase();
             dishes = dishes.filter(d => d.name.toLowerCase().includes(f) || d.restaurant.toLowerCase().includes(f));
         }
+
         if (dishes.length === 0) {
-            container.innerHTML = `<p class="text-center text-muted mt-5">${filter ? 'Nie znaleziono.' : 'Pusto tu!'}</p>`;
+            container.innerHTML = `<p class="text-center text-muted mt-5">Brak dań.</p>`;
             return;
         }
+        
         dishes.forEach(dish => {
             const card = document.createElement('div');
             card.className = 'col-12 col-md-6 col-lg-4';
@@ -149,14 +161,14 @@ function loadCards(filter = "") {
                 <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
                     <img src="${dish.photo}" class="card-img-top" style="height:220px; object-fit:cover;">
                     <div class="card-body d-flex flex-column">
-                        <div class="d-flex justify-content-between">
-                            <h5 class="text-primary fw-bold">${dish.name}</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="text-primary fw-bold mb-0">${dish.name}</h5>
                             <span class="badge bg-warning text-dark">${dish.rating}/10</span>
                         </div>
                         <p class="small text-muted mb-2"><i class="bi bi-shop"></i> ${dish.restaurant}</p>
-                        <p class="small flex-grow-1">${dish.description}</p>
+                        <p class="small flex-grow-1 text-secondary">${dish.description || ''}</p>
                         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
-                            <span class="fw-bold">${dish.price} zł</span>
+                            <span class="fw-bold fs-5">${dish.price} zł</span>
                             <div class="btn-group">
                                 <button class="btn btn-sm btn-outline-primary" onclick="shareDish('${dish.id}')"><i class="bi bi-share"></i></button>
                                 <button class="btn btn-sm btn-outline-secondary" onclick="editDish('${dish.id}')"><i class="bi bi-pencil"></i></button>
@@ -170,6 +182,7 @@ function loadCards(filter = "") {
     };
 }
 
+// --- AKCJE ---
 window.shareDish = id => {
     if (navigator.share) navigator.share({ title: 'Kulinarium', url: window.location.href });
 };
