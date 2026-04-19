@@ -18,10 +18,48 @@ const form = document.getElementById('dish-form');
 const container = document.getElementById('cards-container');
 const photoInput = document.getElementById('photo');
 const photoPreview = document.getElementById('photo-preview');
+const searchInput = document.getElementById('search-input');
+const importInput = document.getElementById('import-input');
 let currentPhotoData = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     bsModal = new bootstrap.Modal(document.getElementById('modal'));
+});
+
+searchInput.addEventListener('input', e => loadCards(e.target.value));
+
+window.exportData = () => {
+    const tx = db.transaction("dishes", "readonly");
+    tx.objectStore("dishes").getAll().onsuccess = e => {
+        const data = JSON.stringify(e.target.result);
+        const blob = new Blob([data], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `kulinarium-backup-${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+    };
+};
+
+importInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = event => {
+        try {
+            const importedData = JSON.parse(event.target.result);
+            const tx = db.transaction("dishes", "readwrite");
+            const store = tx.objectStore("dishes");
+            importedData.forEach(item => store.put(item));
+            tx.oncomplete = () => {
+                alert("Dane zaimportowane pomyślnie!");
+                loadCards();
+            };
+        } catch (err) {
+            alert("Błąd podczas odczytu pliku kopii.");
+        }
+    };
+    reader.readAsText(file);
 });
 
 document.getElementById('add-btn').onclick = () => {
@@ -87,17 +125,21 @@ form.onsubmit = e => {
     };
     const tx = db.transaction("dishes", "readwrite");
     tx.objectStore("dishes").put(dish);
-    tx.oncomplete = () => { bsModal.hide(); loadCards(); };
+    tx.oncomplete = () => { bsModal.hide(); loadCards(searchInput.value); };
 };
 
-function loadCards() {
+function loadCards(filter = "") {
     if (!db) return;
     const tx = db.transaction("dishes", "readonly");
     tx.objectStore("dishes").getAll().onsuccess = e => {
         container.innerHTML = '';
-        const dishes = e.target.result.sort((a, b) => b.id - a.id);
+        let dishes = e.target.result.sort((a, b) => b.id - a.id);
+        if (filter) {
+            const f = filter.toLowerCase();
+            dishes = dishes.filter(d => d.name.toLowerCase().includes(f) || d.restaurant.toLowerCase().includes(f));
+        }
         if (dishes.length === 0) {
-            container.innerHTML = '<p class="text-center text-muted mt-5">Brak dań.</p>';
+            container.innerHTML = `<p class="text-center text-muted mt-5">${filter ? 'Nie znaleziono.' : 'Pusto tu!'}</p>`;
             return;
         }
         dishes.forEach(dish => {
@@ -142,9 +184,12 @@ window.editDish = id => {
         document.getElementById('price').value = d.price;
         document.getElementById('rating').value = d.rating;
         document.getElementById('description').value = d.description;
+        document.getElementById('lat').value = d.lat || '';
+        document.getElementById('lng').value = d.lng || '';
         currentPhotoData = d.photo;
         photoPreview.src = d.photo;
         photoPreview.classList.remove('d-none');
+        document.getElementById('modal-title').innerText = 'Edytuj Danie';
         bsModal.show();
     };
 };
@@ -153,7 +198,7 @@ window.deleteDish = id => {
     if (confirm("Usunąć?")) {
         const tx = db.transaction("dishes", "readwrite");
         tx.objectStore("dishes").delete(id);
-        tx.oncomplete = () => loadCards();
+        tx.oncomplete = () => loadCards(searchInput.value);
     }
 };
 

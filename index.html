@@ -16,11 +16,21 @@
 </head>
 <body class="bg-light">
 
-    <header class="d-flex justify-content-between align-items-center p-3 bg-white border-bottom shadow-sm sticky-top">
-        <h1 class="h3 m-0 text-primary fw-bold"><i class="bi bi-egg-fried"></i> Kulinarium</h1>
-        <button id="add-btn" class="btn btn-primary rounded-pill px-4 fw-bold">
-            <i class="bi bi-plus-lg"></i> Dodaj Danie
-        </button>
+    <header class="p-3 bg-white border-bottom shadow-sm sticky-top">
+        <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h1 class="h3 m-0 text-primary fw-bold"><i class="bi bi-egg-fried"></i> Kulinarium</h1>
+            
+            <div class="d-flex gap-2 flex-grow-1 flex-sm-grow-0">
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-0"><i class="bi bi-search"></i></span>
+                    <input type="text" id="search-input" class="form-control border-0 bg-light" placeholder="Szukaj...">
+                </div>
+                
+                <button id="add-btn" class="btn btn-primary rounded-pill px-3 fw-bold">
+                    <i class="bi bi-plus-lg"></i>
+                </button>
+            </div>
+        </div>
     </header>
     
     <main id="cards-container" class="container mt-4 mb-5 row g-4 mx-auto">
@@ -65,7 +75,7 @@
                         </div>
                         <div class="geo-section mt-4 p-3 bg-light border rounded text-center">
                             <button type="button" id="geo-btn" class="btn btn-outline-secondary btn-sm mb-2">
-                                <i class="bi bi-geo-alt"></i> Pobierz moją lokalizację
+                                <i class="bi bi-geo-alt"></i> Pobierz lokalizację
                             </button>
                             <div id="geo-status" class="small text-muted fw-bold">Brak lokalizacji</div>
                             <input type="hidden" id="lat">
@@ -75,7 +85,7 @@
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
-                    <button type="submit" form="dish-form" class="btn btn-primary px-4">Zapisz w Kulinarium</button>
+                    <button type="submit" form="dish-form" class="btn btn-primary px-4">Zapisz</button>
                 </div>
             </div>
         </div>
