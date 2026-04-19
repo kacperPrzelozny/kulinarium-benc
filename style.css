@@ -1,30 +1,36 @@
-:root {
-    --primary: #ff3535;
-    --primary-dark: #ca0000;
-    --bg: #434343;
-    --card-bg: #6d6d6d;
-    --text: #e8e8e9;
-    --gray: #b2bec3;
-    --radius: 12px;
+body { 
+    min-height: 100vh; 
+    background-color: #f8f9fa; 
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
-* {
-    box-sizing: border-box; margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+.dish-card { 
+    transition: all 0.3s cubic-bezier(.25,.8,.25,1); 
 }
 
-body {
-    background-color: var(--bg);
-    color: var(--text);
-    padding-bottom: 2rem;
+.dish-card:hover { 
+    transform: translateY(-8px); 
+    box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important; 
 }
 
-header {
-    background-color: var(--primary);
-    position: sticky; top: 0; z-index: 100;
+.badge { 
+    font-size: 0.85rem; 
+    padding: 0.5em 0.8em; 
 }
 
-body { min-height: 100vh; background-color: #f8f9fa; }
-.card { transition: transform 0.2s; }
-.card:hover { transform: translateY(-5px); }
+.btn-light { 
+    background-color: #f1f3f5; 
+    border: none; 
+}
+
+.btn-light:hover { 
+    background-color: #e9ecef; 
+}
+
+#toast-container { 
+    z-index: 1100; 
+}
+
+.x-small { 
+    font-size: 0.75rem; 
+}

@@ -1,18 +1,12 @@
 const dbName = "KulinariumDB";
 let db;
 
-// Inicjalizacja IndexedDB
 const request = indexedDB.open(dbName, 1);
 request.onupgradeneeded = e => {
     db = e.target.result;
-    if (!db.objectStoreNames.contains("dishes")) {
-        db.createObjectStore("dishes", { keyPath: "id" });
-    }
+    if (!db.objectStoreNames.contains("dishes")) db.createObjectStore("dishes", { keyPath: "id" });
 };
-request.onsuccess = e => { 
-    db = e.target.result; 
-    loadCards(); 
-};
+request.onsuccess = e => { db = e.target.result; loadCards(); };
 
 let bsModal;
 const form = document.getElementById('dish-form');
@@ -27,7 +21,20 @@ document.addEventListener("DOMContentLoaded", () => {
     bsModal = new bootstrap.Modal(document.getElementById('modal'));
 });
 
-// --- NOWOŚĆ: BACKUP DANYCH ---
+function showToast(message, type = 'primary') {
+    const toastContainer = document.getElementById('toast-container');
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type} border-0 show shadow" role="alert">
+            <div class="d-flex">
+                <div class="toast-body fw-bold">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>`;
+    toastContainer.innerHTML = toastHtml;
+    const toastElement = toastContainer.querySelector('.toast');
+    setTimeout(() => { toastElement.remove(); }, 3000);
+}
+
 window.exportData = () => {
     const tx = db.transaction("dishes", "readonly");
     tx.objectStore("dishes").getAll().onsuccess = e => {
@@ -38,6 +45,7 @@ window.exportData = () => {
         a.href = url;
         a.download = `kulinarium-backup-${new Date().toISOString().split('T')[0]}.json`;
         a.click();
+        showToast("Pobrano kopię zapasową", "success");
     };
 };
 
@@ -52,30 +60,22 @@ importInput.addEventListener('change', e => {
             const store = tx.objectStore("dishes");
             importedData.forEach(item => store.put(item));
             tx.oncomplete = () => {
-                alert("Import zakończony sukcesem!");
+                showToast("Dane zaimportowane!", "success");
                 loadCards();
             };
-        } catch (err) {
-            alert("Błąd pliku JSON.");
-        }
+        } catch (err) { showToast("Błąd pliku!", "danger"); }
     };
     reader.readAsText(file);
 });
 
-// --- WYSZUKIWARKA ---
-searchInput.addEventListener('input', e => {
-    loadCards(e.target.value);
-});
+searchInput.addEventListener('input', e => loadCards(e.target.value));
 
-// --- LOGIKA FORMULARZA ---
 document.getElementById('add-btn').onclick = () => {
     form.reset();
     document.getElementById('entry-id').value = '';
-    photoPreview.src = ''; 
-    photoPreview.classList.add('d-none'); 
+    photoPreview.src = ''; photoPreview.classList.add('d-none'); 
     document.getElementById('geo-status').innerText = 'Brak lokalizacji';
-    document.getElementById('lat').value = '';
-    document.getElementById('lng').value = '';
+    document.getElementById('lat').value = ''; document.getElementById('lng').value = '';
     document.getElementById('modal-title').innerText = 'Nowe Danie';
     currentPhotoData = null;
     bsModal.show();
@@ -111,7 +111,7 @@ document.getElementById('geo-btn').onclick = () => {
         pos => {
             document.getElementById('lat').value = pos.coords.latitude;
             document.getElementById('lng').value = pos.coords.longitude;
-            status.innerText = "Lokalizacja zapisana!";
+            status.innerHTML = `<span class="text-success">Lokalizacja zapisana!</span>`;
         },
         () => { status.innerText = "Błąd GPS."; }
     );
@@ -133,46 +133,49 @@ form.onsubmit = e => {
     };
     const tx = db.transaction("dishes", "readwrite");
     tx.objectStore("dishes").put(dish);
-    tx.oncomplete = () => { bsModal.hide(); loadCards(searchInput.value); };
+    tx.oncomplete = () => { 
+        bsModal.hide(); 
+        loadCards(searchInput.value);
+        showToast("Danie zapisane!", "primary");
+    };
 };
 
-// --- RENDEROWANIE ---
 function loadCards(filter = "") {
     if (!db) return;
     const tx = db.transaction("dishes", "readonly");
     tx.objectStore("dishes").getAll().onsuccess = e => {
         container.innerHTML = '';
         let dishes = e.target.result.sort((a, b) => b.id - a.id);
-        
         if (filter) {
             const f = filter.toLowerCase();
             dishes = dishes.filter(d => d.name.toLowerCase().includes(f) || d.restaurant.toLowerCase().includes(f));
         }
-
         if (dishes.length === 0) {
-            container.innerHTML = `<p class="text-center text-muted mt-5">Brak dań.</p>`;
+            container.innerHTML = `<div class="col-12 text-center text-muted mt-5"><i class="bi bi-search fs-1"></i><p>Nic nie znaleziono.</p></div>`;
             return;
         }
-        
         dishes.forEach(dish => {
             const card = document.createElement('div');
             card.className = 'col-12 col-md-6 col-lg-4';
+            const mapBtn = dish.lat ? `<a href="https://www.google.com/maps?q=${dish.lat},${dish.lng}" target="_blank" class="btn btn-sm btn-light rounded-pill"><i class="bi bi-geo-alt text-danger"></i></a>` : '';
+            
             card.innerHTML = `
-                <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
+                <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden dish-card">
                     <img src="${dish.photo}" class="card-img-top" style="height:220px; object-fit:cover;">
                     <div class="card-body d-flex flex-column">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h5 class="text-primary fw-bold mb-0">${dish.name}</h5>
-                            <span class="badge bg-warning text-dark">${dish.rating}/10</span>
+                            <span class="badge bg-warning text-dark border-0 rounded-pill">${dish.rating}/10</span>
                         </div>
                         <p class="small text-muted mb-2"><i class="bi bi-shop"></i> ${dish.restaurant}</p>
                         <p class="small flex-grow-1 text-secondary">${dish.description || ''}</p>
                         <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
                             <span class="fw-bold fs-5">${dish.price} zł</span>
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-primary" onclick="shareDish('${dish.id}')"><i class="bi bi-share"></i></button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="editDish('${dish.id}')"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteDish('${dish.id}')"><i class="bi bi-trash"></i></button>
+                            <div class="d-flex gap-1">
+                                ${mapBtn}
+                                <button class="btn btn-sm btn-light rounded-pill" onclick="shareDish('${dish.id}')"><i class="bi bi-share text-primary"></i></button>
+                                <button class="btn btn-sm btn-light rounded-pill" onclick="editDish('${dish.id}')"><i class="bi bi-pencil text-secondary"></i></button>
+                                <button class="btn btn-sm btn-light rounded-pill" onclick="deleteDish('${dish.id}')"><i class="bi bi-trash text-danger"></i></button>
                             </div>
                         </div>
                     </div>
@@ -182,9 +185,9 @@ function loadCards(filter = "") {
     };
 }
 
-// --- AKCJE ---
 window.shareDish = id => {
     if (navigator.share) navigator.share({ title: 'Kulinarium', url: window.location.href });
+    else showToast("Twoja przeglądarka nie wspiera Share API", "warning");
 };
 
 window.editDish = id => {
@@ -208,10 +211,13 @@ window.editDish = id => {
 };
 
 window.deleteDish = id => {
-    if (confirm("Usunąć?")) {
+    if (confirm("Usunąć ten wpis?")) {
         const tx = db.transaction("dishes", "readwrite");
         tx.objectStore("dishes").delete(id);
-        tx.oncomplete = () => loadCards(searchInput.value);
+        tx.oncomplete = () => {
+            loadCards(searchInput.value);
+            showToast("Usunięto wpis.", "danger");
+        };
     }
 };
 
