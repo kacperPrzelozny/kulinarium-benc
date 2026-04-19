@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kulinarium-v2';
+const CACHE_NAME = 'kulinarium-v3';
 const ASSETS = [
     './',
     './index.html',
@@ -30,8 +30,6 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
     e.respondWith(
-        caches.match(e.request).then(res => {
-            return res || fetch(e.request);
-        })
+        caches.match(e.request).then(res => res || fetch(e.request))
     );
 });
