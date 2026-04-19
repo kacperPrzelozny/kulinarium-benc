@@ -12,33 +12,149 @@ request.onsuccess = e => {
     db = e.target.result; 
     loadCards(); 
 };
-request.onerror = e => console.error("Błąd bazy danych", e);
 
 let bsModal;
-document.addEventListener("DOMContentLoaded", () => {
-    bsModal = new bootstrap.Modal(document.getElementById('modal'));
-});
-
 const form = document.getElementById('dish-form');
 const container = document.getElementById('cards-container');
 const photoInput = document.getElementById('photo');
 const photoPreview = document.getElementById('photo-preview');
 let currentPhotoData = null;
 
+document.addEventListener("DOMContentLoaded", () => {
+    bsModal = new bootstrap.Modal(document.getElementById('modal'));
+});
+
 document.getElementById('add-btn').onclick = () => {
     form.reset();
     document.getElementById('entry-id').value = '';
-    
     photoPreview.src = ''; 
     photoPreview.classList.add('d-none'); 
-    
     document.getElementById('geo-status').innerText = 'Brak lokalizacji';
-    document.getElementById('geo-status').className = 'small text-muted fw-bold';
-    document.getElementById('lat').value = '';
-    document.getElementById('lng').value = '';
-    
     document.getElementById('modal-title').innerText = 'Nowe Danie';
     currentPhotoData = null;
-    
     bsModal.show();
 };
+
+photoInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = event => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800;
+            const scale = MAX_WIDTH / img.width;
+            canvas.width = MAX_WIDTH;
+            canvas.height = img.height * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            currentPhotoData = canvas.toDataURL('image/jpeg', 0.7);
+            photoPreview.src = currentPhotoData;
+            photoPreview.classList.remove('d-none');
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+});
+
+document.getElementById('geo-btn').onclick = () => {
+    const status = document.getElementById('geo-status');
+    status.innerText = "Pobieranie...";
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            document.getElementById('lat').value = pos.coords.latitude;
+            document.getElementById('lng').value = pos.coords.longitude;
+            status.innerText = "Lokalizacja zapisana!";
+        },
+        () => { status.innerText = "Błąd lokalizacji."; }
+    );
+};
+
+form.onsubmit = e => {
+    e.preventDefault();
+    const id = document.getElementById('entry-id').value || Date.now().toString();
+    const dish = {
+        id: id,
+        name: document.getElementById('name').value,
+        restaurant: document.getElementById('restaurant').value,
+        price: document.getElementById('price').value,
+        rating: document.getElementById('rating').value,
+        description: document.getElementById('description').value,
+        lat: document.getElementById('lat').value,
+        lng: document.getElementById('lng').value,
+        photo: currentPhotoData || 'https://via.placeholder.com/400x250?text=Brak+zdjęcia'
+    };
+    const tx = db.transaction("dishes", "readwrite");
+    tx.objectStore("dishes").put(dish);
+    tx.oncomplete = () => { bsModal.hide(); loadCards(); };
+};
+
+function loadCards() {
+    if (!db) return;
+    const tx = db.transaction("dishes", "readonly");
+    tx.objectStore("dishes").getAll().onsuccess = e => {
+        container.innerHTML = '';
+        const dishes = e.target.result.sort((a, b) => b.id - a.id);
+        if (dishes.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted mt-5">Brak dań.</p>';
+            return;
+        }
+        dishes.forEach(dish => {
+            const card = document.createElement('div');
+            card.className = 'col-12 col-md-6 col-lg-4';
+            card.innerHTML = `
+                <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
+                    <img src="${dish.photo}" class="card-img-top" style="height:220px; object-fit:cover;">
+                    <div class="card-body d-flex flex-column">
+                        <div class="d-flex justify-content-between">
+                            <h5 class="text-primary fw-bold">${dish.name}</h5>
+                            <span class="badge bg-warning text-dark">${dish.rating}/10</span>
+                        </div>
+                        <p class="small text-muted mb-2"><i class="bi bi-shop"></i> ${dish.restaurant}</p>
+                        <p class="small flex-grow-1">${dish.description}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+                            <span class="fw-bold">${dish.price} zł</span>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="shareDish('${dish.id}')"><i class="bi bi-share"></i></button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="editDish('${dish.id}')"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteDish('${dish.id}')"><i class="bi bi-trash"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            container.appendChild(card);
+        });
+    };
+}
+
+window.shareDish = id => {
+    if (navigator.share) navigator.share({ title: 'Kulinarium', url: window.location.href });
+};
+
+window.editDish = id => {
+    const tx = db.transaction("dishes", "readonly");
+    tx.objectStore("dishes").get(id).onsuccess = e => {
+        const d = e.target.result;
+        document.getElementById('entry-id').value = d.id;
+        document.getElementById('name').value = d.name;
+        document.getElementById('restaurant').value = d.restaurant;
+        document.getElementById('price').value = d.price;
+        document.getElementById('rating').value = d.rating;
+        document.getElementById('description').value = d.description;
+        currentPhotoData = d.photo;
+        photoPreview.src = d.photo;
+        photoPreview.classList.remove('d-none');
+        bsModal.show();
+    };
+};
+
+window.deleteDish = id => {
+    if (confirm("Usunąć?")) {
+        const tx = db.transaction("dishes", "readwrite");
+        tx.objectStore("dishes").delete(id);
+        tx.oncomplete = () => loadCards();
+    }
+};
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
