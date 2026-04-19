@@ -19,6 +19,11 @@ let currentPhotoData = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     bsModal = new bootstrap.Modal(document.getElementById('modal'));
+    
+    // DETEKCJA STATUSU SIECI
+    window.addEventListener('online', () => showToast("Jesteś z powrotem online!", "success"));
+    window.addEventListener('offline', () => showToast("Działasz w trybie offline. Dane zapiszą się lokalnie.", "warning"));
+    if (!navigator.onLine) showToast("Brak połączenia z siecią.", "warning");
 });
 
 function showToast(message, type = 'primary') {
@@ -32,9 +37,10 @@ function showToast(message, type = 'primary') {
         </div>`;
     toastContainer.innerHTML = toastHtml;
     const toastElement = toastContainer.querySelector('.toast');
-    setTimeout(() => { toastElement.remove(); }, 3000);
+    setTimeout(() => { if(toastElement) toastElement.remove(); }, 3000);
 }
 
+// BACKUP
 window.exportData = () => {
     const tx = db.transaction("dishes", "readonly");
     tx.objectStore("dishes").getAll().onsuccess = e => {
@@ -68,8 +74,10 @@ importInput.addEventListener('change', e => {
     reader.readAsText(file);
 });
 
+// WYSZUKIWARKA
 searchInput.addEventListener('input', e => loadCards(e.target.value));
 
+// FORMULARZ
 document.getElementById('add-btn').onclick = () => {
     form.reset();
     document.getElementById('entry-id').value = '';
@@ -140,6 +148,7 @@ form.onsubmit = e => {
     };
 };
 
+// RENDEROWANIE
 function loadCards(filter = "") {
     if (!db) return;
     const tx = db.transaction("dishes", "readonly");
@@ -221,4 +230,15 @@ window.deleteDish = id => {
     }
 };
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+        reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    showToast("Dostępna nowa wersja! Odśwież stronę.", "info");
+                }
+            };
+        };
+    });
+}
